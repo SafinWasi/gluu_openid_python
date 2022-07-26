@@ -86,7 +86,7 @@ class GluuClientReg:
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print(
-            "Usage: python gluu_client_reg.py <host_name> <path to host's SSL certificate> <path to your Java Keystore file>"
+            "Usage: python gluu_client_reg.py <host_name> <path to host's SSL certificate> <path to your JWKS file>"
         )
         sys.exit()
 

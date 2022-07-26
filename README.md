@@ -13,7 +13,7 @@ This python script will allow you to use [Dynamic Client Registration](https://o
 2. Set up a virtual python environment: `python -m venv venv`
 3. And activate it: `source venv/bin/activate`
 4. Install requirements: `pip install -r requirements.txt`
-5. Run the script: `python gluu_client_reg.py <hostname> <path to host's SSL certificate> <path to your Java Keystore file>`
+5. Run the script: `python gluu_client_reg.py <hostname> <path to host's SSL certificate> <path to your JWKS file>`
 6. Enter a name for your new client when prompted. Remember this; you will need it later.
 7. If the script runs successfully, the new client ID and secret will be saved to `client.json`. **Do not** share this information.
 
