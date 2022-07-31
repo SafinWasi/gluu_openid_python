@@ -23,7 +23,7 @@ class GluuClientReg:
         self.client_id = None
         self.client_secret = None
 
-    def get_jwks(self, file_name:str="client-key.jwks"):
+    def get_jwks(self, file_name:str):
         """
         Reads a JWKS file and loads the JSON web key set.
         file_name: The JWKS file containing your JSON Web Key Set. Defaults to "client-key.jwks"
