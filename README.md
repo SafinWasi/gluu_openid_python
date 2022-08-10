@@ -6,7 +6,7 @@ This python script will allow you to use [Dynamic Client Registration](https://o
 - Python3
 - pip3
 - The SSL certificate from your Gluu server, which can be found at `Configuration` > `Certificates` > `HTTPD SSL` and clicking `Download`. The script expects `httpd.crt` by default. 
-- (Optional) A JWKS file containing a JSON Web Key Set.
+- (Optional) A JWKS file containing a JSON Web Key Set. If this is not set, the new client will use `client_secret_basic` for the token endpoint authentication.
 
 ## Setup
 1. Clone the repository, and navigate to it.
