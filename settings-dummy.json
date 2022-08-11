@@ -1,0 +1,6 @@
+{
+    "hostname": "<http://<your-hostname>/>",
+    "sslcert": "<path-to-host-ssl-cert>",
+    "callback_uri": "http://localhost:5000/callback",
+    "jwks_path": null
+}
