@@ -4,3 +4,4 @@ __pycache__/
 *.jwks
 *.crt
 *.jks
+settings.json

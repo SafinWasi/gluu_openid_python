@@ -6,59 +6,57 @@ import requests
 class GluuClientReg:
     """An implementation of a simple client application to create an OpenID user on Gluu."""
 
-    def __init__(self, host_name:str, cert_file:str):
+    def __init__(self, settings: dict):
         """
         Constructor for GluuClientReg.
-        host_name: The hostname of the Gluu server.
-        cert_file: The SSL certificate file of the Gluu server.
+        settings: the settings dictionary loaded from settings.json
         """
-        if host_name[-1] != "/":
-            host_name += "/"
-        self.host_name = host_name
-        self.cert = cert_file
-        self.token_endpoint = None
-        self.openid_configs = host_name + ".well-known/openid-configuration"
-
-        self.jwks = None
+        self.settings = settings
+        hostname = self.settings["hostname"]
+        if hostname[-1] != "/":
+            hostname += "/"
+        self.settings["hostname"] = hostname
+        openid_configs = hostname + ".well-known/openid-configuration"
+        self.settings["openid"] = openid_configs
         self.client_id = None
         self.client_secret = None
 
-    def get_jwks(self, file_name:str):
+    def get_jwks(self, file_name: str):
         """
         Reads a JWKS file and loads the JSON web key set.
-        file_name: The JWKS file containing your JSON Web Key Set. Defaults to "client-key.jwks"
+        file_name: The JWKS file containing your JSON Web Key Set.
         """
         with open(file_name, "r") as file:
             data = json.loads(file.read())
-        self.jwks = data
+        self.settings["jwks"] = data
 
     def get_client(self):
         """
         Sends a POST request to the server for dynamic client registration.
         The client will optionally use private_key_jwt for authentication if
-        ScimClient.get_jwks() was called. Otherwise, client_secret_basic will 
+        ScimClient.get_jwks() was called. Otherwise, client_secret_basic will
         be used.
         """
-        r = requests.get(self.openid_configs, verify=self.cert)
+        r = requests.get(self.settings["openid"], verify=self.settings["sslcert"])
         if r.status_code != 200:
             print("Request returned", r.status_code)
         else:
             data = r.json()
             reg = data["registration_endpoint"]
-            self.token_endpoint = data["token_endpoint"]
+            self.settings["token_endpoint"] = data["token_endpoint"]
             print("Enter a name for the new client: ", end="")
             client_name = input()
             payload = {
                 "application_type": "native",
-                "redirect_uris": [self.host_name + "callback"],
+                "redirect_uris": [self.settings["callback_uri"]],
                 "client_name": client_name,
                 "grant_types": ["client_credentials"],
             }
-            if self.jwks is not None:
-                payload["jwks"] = self.jwks
+            if "jwks" in self.settings and self.settings["jwks"] is not None:
+                payload["jwks"] = self.settings["jwks"]
                 payload["token_endpoint_auth_method"] = "private_key_jwt"
 
-            r2 = requests.post(reg, json=payload, verify=self.cert)
+            r2 = requests.post(reg, json=payload, verify=self.settings["sslcert"])
             if r2.status_code == 200:
                 client_id = r2.json()["client_id"]
                 client_secret = r2.json()["client_secret"]
@@ -72,25 +70,21 @@ class GluuClientReg:
                 print("Returned status code", r2.status_code)
                 print(r2.content)
 
-    def read_client(self, file_name:str="client.json"):
-        """
-        Reads an existing JSON file for client configuration.
-        file_name: JSON file containing client_id and client_secret. Defaults to "client.json".
-        """
-        with open(file_name, "r") as file:
-            data = json.loads(file.read())
-        self.client_id = data["client_id"]
-        self.client_secret = data["client_secret"]
-
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print(
-            "Usage: python gluu_client_reg.py <host_name> <path to host's SSL certificate> <path to your JWKS file>"
-        )
+    with open("settings.json", "r") as f:
+        settings = json.loads(f.read())
+
+    if (
+        not settings["hostname"]
+        or not settings["callback_uri"]
+        or not settings["sslcert"]
+    ):
+        print("Misconfigured settings.json. Please refer to settings-demo.json.")
         sys.exit()
 
-    testClient = GluuClientReg(sys.argv[1], sys.argv[2])
-    if len(sys.argv) == 4:
-        testClient.get_jwks(sys.argv[3])
+    testClient = GluuClientReg(settings)
+    if settings["jwks_path"]:
+        testClient.get_jwks(settings["jwks_path"])
+
     testClient.get_client()
