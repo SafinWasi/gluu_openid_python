@@ -1,6 +1,8 @@
+import base64
 import json
 import sys
 import requests
+from jose import jws
 
 
 class GluuClientReg:
@@ -29,6 +31,15 @@ class GluuClientReg:
         with open(file_name, "r") as file:
             data = json.loads(file.read())
         self.settings["jwks"] = data
+    
+    def get_ssa(self, file_name: str):
+        """
+        Reads in a JSON file and loads the software statement
+        https://www.rfc-editor.org/rfc/rfc7591.html#section-2
+        """
+        with open(file_name, "r") as file:
+            data = json.loads(file.read())
+        self.settings["ssa"] = data
 
     def get_client(self):
         """
@@ -52,11 +63,27 @@ class GluuClientReg:
                 "client_name": client_name,
                 "grant_types": ["client_credentials"],
             }
+
             if "jwks" in self.settings and self.settings["jwks"] is not None:
                 payload["jwks"] = self.settings["jwks"]
                 payload["token_endpoint_auth_method"] = "private_key_jwt"
+                
+            if "ssa" in self.settings and self.settings["ssa"] is not None:
+                ssa = self.settings["ssa"]
+                # Set the appropriate kid here
+                headers = {
+                    "kid": "abcdef",
+                    "alg": "RS256",
+                    "typ": "JWT"
+                }
+                signed = jws.sign(ssa, settings["privKey"],headers=headers, algorithm='RS256')
+                assert(jws.verify(signed, settings["pubKey"], algorithms=["RS256"]))
+                payload["software_statement"] = signed
+
+            print(json.dumps(payload, indent=4))
 
             r2 = requests.post(reg, json=payload, verify=self.settings["sslcert"])
+
             if r2.status_code == 200:
                 client_id = r2.json()["client_id"]
                 client_secret = r2.json()["client_secret"]
@@ -84,7 +111,18 @@ if __name__ == "__main__":
         sys.exit()
 
     testClient = GluuClientReg(settings)
-    if settings["jwks_path"]:
+
+    if "jwks_path" in settings:
         testClient.get_jwks(settings["jwks_path"])
+    
+    if "ssa_path" in settings:
+        testClient.get_ssa(settings["ssa_path"])
+        try:
+            with open(settings["privkey_path"]) as f:
+                settings["privKey"] = f.read()
+            with open(settings["pubkey_path"]) as f:
+                settings["pubKey"] = f.read()
+        except Exception:
+            print("Key pair not found")
 
     testClient.get_client()

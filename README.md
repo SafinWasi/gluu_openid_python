@@ -7,8 +7,9 @@ This python script will allow you to use [Dynamic Client Registration](https://o
 - pip3
 - The SSL certificate from your Gluu server, which can be found at `Configuration` > `Certificates` > `HTTPD SSL` and clicking `Download`. The script expects `httpd.crt` by default. 
 - (Optional) A JWKS file containing a JSON Web Key Set. If this is not set, the new client will use `client_secret_basic` for the token endpoint authentication. Otherwise, it will use `private_key_jwt`.
+- TBI
 
-## Setup
+## Setup (Under modification)
 1. Clone the repository, and navigate to it.
 2. Set up a virtual python environment: `python -m venv venv`
 3. And activate it: `source venv/bin/activate`
@@ -22,3 +23,4 @@ This python script will allow you to use [Dynamic Client Registration](https://o
 - [Gluu 4.4 Documentation](https://gluu.org/docs/gluu-server/4.4/)
 - [JWK Specification](https://datatracker.ietf.org/doc/html/rfc7517)
 - [OpenID Connect Dynamic Client Registration](https://openid.net/specs/openid-connect-registration-1_0.html)
+- [OAuth 2.0 Dynamic Client Registration](https://www.rfc-editor.org/rfc/rfc7591.html)
