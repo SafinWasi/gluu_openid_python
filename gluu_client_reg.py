@@ -1,11 +1,10 @@
-import base64
 import json
 import sys
 import requests
 from jose import jws
+import argparse
 
 DEBUG = False
-
 
 class GluuClientReg:
     """An implementation of a simple client application to create an OpenID user on Gluu."""
@@ -15,6 +14,8 @@ class GluuClientReg:
         Constructor for GluuClientReg.
         settings: the settings dictionary loaded from settings.json
         """
+        if not self.validate_settings(settings):
+            sys.exit()
         self.settings = settings
         hostname = self.settings["hostname"]
         if hostname[-1] != "/":
@@ -22,8 +23,25 @@ class GluuClientReg:
         self.settings["hostname"] = hostname
         openid_configs = hostname + ".well-known/openid-configuration"
         self.settings["openid"] = openid_configs
+
+        if "jwks_path" in settings:
+            self.get_jwks(settings["jwks_path"])
+    
+        if "ssa_path" in settings:
+            self.get_ssa(settings)
+
         self.client_id = None
         self.client_secret = None
+    
+    def validate_settings(self, settings:dict):
+        if not settings["hostname"] or not settings["callback_uri"]:
+            print("Misconfigured settings.json. Please refer to settings-demo.json.")
+            return False
+        if settings["ssa_path"]:
+            if not settings["jwks_path"] or not settings["pubkey_path"] or not settings["privkey_path"]:
+                print("SSA found, but misconfigured keys.")
+                return False
+        return True
 
     def get_jwks(self, file_name: str) -> dict:
         """
@@ -34,14 +52,21 @@ class GluuClientReg:
             data = json.loads(file.read())
         self.settings["jwks"] = data
     
-    def get_ssa(self, file_name: str) -> dict:
+    def get_ssa(self, settings: dict) -> dict:
         """
         Reads in a JSON file and loads the software statement
         https://www.rfc-editor.org/rfc/rfc7591.html#section-2
         """
-        with open(file_name, "r") as file:
+        print(settings)
+        with open(settings["ssa_path"], "r") as file:
             data = json.loads(file.read())
         self.settings["ssa"] = data
+
+        with open(settings["pubkey_path"], "r") as f:
+            self.settings["pubKey"] = f.read()
+        
+        with open(settings["privkey_path"], "r") as f:
+            self.settings["privKey"] = f.read()
 
     def get_client(self):
         """
@@ -52,7 +77,10 @@ class GluuClientReg:
         """
         
         try:
-            r = requests.get(self.settings["openid"], verify=self.settings["sslcert"])
+            if DEBUG:
+                r = requests.get(self.settings["openid"], verify=False)
+            else:
+                r = requests.get(self.settings["openid"])
             r.raise_for_status()
             if r.ok:
                 data = r.json()
@@ -68,6 +96,7 @@ class GluuClientReg:
             "application_type": "native",
             "redirect_uris": [self.settings["callback_uri"]],
             "client_name": client_name,
+            "grant_types": ["client_credentials"],
         }
 
         if "jwks" in self.settings and self.settings["jwks"] is not None:
@@ -91,7 +120,10 @@ class GluuClientReg:
         print(json.dumps(payload, indent=4))
 
         try:
-            r2 = requests.post(reg, json=payload, verify=self.settings["sslcert"])
+            if DEBUG:
+                r2 = requests.post(reg, json=payload, verify=False)
+            else:
+                r2 = requests.post(reg, json=payload)
             r2.raise_for_status()
             if r2.ok:
                 client_id = r2.json()["client_id"]
@@ -117,27 +149,6 @@ if __name__ == "__main__":
     with open("settings.json", "r") as f:
         settings = json.loads(f.read())
 
-    if (
-        not settings["hostname"]
-        or not settings["callback_uri"]
-        or not settings["sslcert"]
-    ):
-        print("Misconfigured settings.json. Please refer to settings-demo.json.")
-        sys.exit()
-
     testClient = GluuClientReg(settings)
-
-    if "jwks_path" in settings:
-        testClient.get_jwks(settings["jwks_path"])
-    
-    if "ssa_path" in settings:
-        testClient.get_ssa(settings["ssa_path"])
-        try:
-            with open(settings["privkey_path"]) as f:
-                settings["privKey"] = f.read()
-            with open(settings["pubkey_path"]) as f:
-                settings["pubKey"] = f.read()
-        except Exception:
-            print("Key pair not found")
 
     testClient.get_client()
